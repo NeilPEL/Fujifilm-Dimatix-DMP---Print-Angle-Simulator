@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dimatix DMP Head - Angle and Print Visualisation </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls, .results {
+            flex: 1 1 300px;
+            min-width: 300px;
+        }
+
+        /* NEW CONTAINER STYLING */
+        .visualization-controls {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f0f0f5;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        /* End NEW CONTAINER STYLING */
+
+
+        /* Visualization Area */
+        .visualization-area {
+            flex: 2 1 500px;
+            min-height: 800px;
+            background-color: #e9e9e9;
+            border: 1px solid #ccc;
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+
+        /* Print Head Container - POSITIONING ADJUSTED */
+        .nozzle-head-container {
+            position: absolute;
+            top: 10%; /* Vertical Anchor Point */
+            left: 40%; /* Head Pivot Position */
+            transform-origin: 50% 0%; 
+            transform: rotate(90deg); /* Base rotation for horizontal alignment */
+            padding: 20px; 
+        }
+        
+        /* The rectangular box around the nozzles */
+        .head-box {
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 3px solid #153; 
+        }
+
+        .nozzle {
+            width: 8px;
+            height: 8px;
+            background-color: #ff4757; 
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        /* Printed Dots Area - POSITIONING ADJUSTED */
+        .printed-dots-area {
+            position: absolute;
+            top: 8%; /* Vertical Anchor Point */
+            left: 50%; /* Printed Dots Start Position */
+        }
+        
+        /* Printed Dots - Base style for all dots */
+        .printed-dot {
+            position: absolute;
+            left: 0; 
+            border-radius: 50%;
+            opacity: 0.8;
+            border: 1px solid #0056b3;
+        }
+
+        /* Y-Axis Print Spacing Line */
+        .spacing-line {
+            position: absolute;
+            left: -30px; 
+            width: 20px;
+            border-bottom: 1px dashed #333;
+        }
+        
+        /* Input/Result Styling (remains the same) */
+        .input-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 5px solid #007bff;
+        }
+        .result-item.x-axis {
+            border-left-color: #008000; /* Green for X-axis metrics */
+        }
+
+        .result-label {
+            font-weight: bold;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+
+    <h1>DMP 12 Nozzle Samba Print Head Angle Simulator</h1>
+	<h3>Made by PEL - PrintedElectronics.com</h3>
+
+    <div class="container">
+        <div class="controls">
+            <h2>⚙️ Inputs</h2>
+            
+            
+            <div class="input-group">
+                <label for="desired-dpi">Desired Print DPI (Y-Axis):</label>
+                <input type="number" id="desired-dpi" min="1" max="5000" step="1" value="1270" style="width: 100%; padding: 5px;" oninput="calculateAngleFromDPI()">
+                <p style="font-size: small; margin-top: 5px;">*Inputting a DPI will calculate the required angle.</p>
+            </div>
+
+            <div class="input-group">
+                <label for="angle-slider">Head Rotation Angle (&theta; from X-axis):</label>
+                <input type="range" id="angle-slider" min="0" max="90" step="0.1" value="3" oninput="updateVisualizationFromAngle()">
+                <p>Current Angle: <strong id="current-angle">3.0</strong> degrees</p>
+                <p>Required Angle for Desired DPI: <strong id="required-angle">---</strong> degrees</p>
+            </div>
+            
+            <!-- MOVED/RENAMED X-AXIS POSITION INPUTS -->
+            <div class="input-group">
+                <label for="head-x-position">Head Travel:</label>
+                <input type="range" id="head-x-position" min="0" max="90" step="1" value="40" oninput="updateVisualizationFromAngle()">
+                <p>Current Head X: <strong id="current-head-x">40%</strong></p>
+            </div>
+
+            <div class="input-group">
+                <label for="dots-x-position">Printed Dot Start Position:</label>
+                <input type="range" id="dots-x-position" min="0" max="90" step="1" value="50" oninput="updateVisualizationFromAngle()">
+                <p>Current Dots X: <strong id="current-dots-x">50%</strong></p>
+            </div>
+            <!-- END MOVED/RENAMED X-AXIS POSITION INPUTS -->
+            
+        </div>
+
+        <div class="results">
+            <h2>📊 Print Metrics</h2>
+            
+            <h3>Y-Axis Resolution (Angle)</h3>
+            <div class="result-item">
+                <span class="result-label">Calculated sin(&theta;):</span>
+                <span id="sin-theta">0.0523</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Effective Y-Print Spacing (µm):</span>
+                <span id="y-print-spacing">17.72</span> µm
+            </div>
+            <div class="result-item">
+                <span class="result-label">Resulting Print Resolution (DPI):</span>
+                <span id="calculated-dpi">1433.00</span> DPI
+            </div>
+            
+            <hr>
+
+            <h3>X-Axis Resolution (Frequency)</h3>
+            <div class="result-item x-axis">
+                <span class="result-label">X-Print Spacing (&Delta;x):</span>
+                <span id="x-print-spacing">20.00</span> µm
+            </div>
+            <div class="result-item x-axis">
+                <span class="result-label">Resulting Print Resolution (DPI):</span>
+                <span id="calculated-dpi-x">1270.00</span> DPI
+            </div>
+
+            <p style="font-size: small; margin-top: 15px;">*Nozzle Pitch : 338.67 µm</p>
+        </div>
+    </div>
+    
+    <!-- MOVED INPUT BLOCK -->
+    <div class="visualization-controls">
+        <div class="input-group" style="margin-bottom: 0;">
+            <label for="drop-size-multiplier">Drop Size Multiplier (x):</label>
+            <input type="number" id="drop-size-multiplier" min="1" max="10" step="1" value="1" style="width: 100%; padding: 5px;" oninput="updateVisualizationFromAngle()">
+            <p style="font-size: small; margin-top: 5px;">*Changes the size of the blue printed dots.</p>
+        </div>
+        
+        <div class="input-group" style="margin-bottom: 0;">
+            <label>
+                <input type="checkbox" id="frequency-toggle" checked onchange="updateVisualizationFromAngle()">
+                Enable X-Axis Frequency Simulation
+            </label>
+        </div>
+        
+        <div class="input-group">
+            <label for="frequency-level">Print Frequency Setting:</label>
+            <select id="frequency-level" onchange="updateVisualizationFromAngle()">
+                <option value="MEDIUM">Medium (1270 DPI)</option>
+                <option value="VERY_LOW">Very Low (300 DPI)</option>
+                <option value="LOW">Low (600 DPI)</option>
+                <option value="HIGH">High (1800 DPI)</option>
+                <option value="VERY_HIGH">Very High (2540 DPI)</option>
+            </select>
+        </div>
+        
+    </div>
+    <!-- END MOVED INPUT BLOCK -->
+
+
+    <div class="visualization-area">
+        <div style="position: absolute; top: 10px; left: 10px; font-weight: bold;">Y-Axis (Print Spacing)</div>
+        <div style="position: absolute; bottom: 10px; right: 10px; font-weight: bold;">X-Axis (Print Direction)</div>
+        
+        <div class="nozzle-head-container" id="nozzle-head-container">
+            <!-- Head components are fully generated in JavaScript -->
+        </div>
+        
+        <div class="printed-dots-area" id="printed-dots-area">
+            <!-- Printed dots and spacing lines will be created here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const NOZZLE_PITCH_UM = 338.67; 
+        const NUM_NOZZLES = 12;
+        const UM_PER_INCH = 25400; 
+        const NOZZLE_DIAMETER_PX = 8; 
+        const BASE_DOT_SIZE_PX = 7; 
+        const NUM_X_DOTS = 20; // Fixed number of dots to show in X direction
+
+        const X_AXIS_LEVELS = {
+            VERY_LOW: { dpi: 300, spacing: 25400 / 300 },      // ~84.67 um
+            LOW: { dpi: 600, spacing: 25400 / 600 },        // ~42.33 um
+            MEDIUM: { dpi: 1270, spacing: 25400 / 1270 },    // ~20.00 um
+            HIGH: { dpi: 1800, spacing: 25400 / 1800 },      // ~14.11 um
+            VERY_HIGH: { dpi: 2540, spacing: 25400 / 2540 }  // ~10.00 um
+        };
+        
+        // --- DOM ELEMENTS ---
+        const angleSlider = document.getElementById('angle-slider');
+        const desiredDPIInput = document.getElementById('desired-dpi');
+        const dropSizeMultiplierInput = document.getElementById('drop-size-multiplier'); 
+        const headXPositionInput = document.getElementById('head-x-position'); 
+        const dotsXPositionInput = document.getElementById('dots-x-position'); 
+        const frequencyToggle = document.getElementById('frequency-toggle');
+        const frequencyLevelSelect = document.getElementById('frequency-level');
+        
+        const currentAngleDisplay = document.getElementById('current-angle');
+        const requiredAngleDisplay = document.getElementById('required-angle');
+        const currentHeadXDisplay = document.getElementById('current-head-x'); 
+        const currentDotsXDisplay = document.getElementById('current-dots-x'); 
+        const sinThetaDisplay = document.getElementById('sin-theta');
+        const yPrintSpacingDisplay = document.getElementById('y-print-spacing');
+        const calculatedDpiDisplay = document.getElementById('calculated-dpi');
+        const calculatedDpiXDisplay = document.getElementById('calculated-dpi-x');
+        const xPrintSpacingDisplay = document.getElementById('x-print-spacing');
+        const nozzleHeadContainer = document.getElementById('nozzle-head-container');
+        const printedDotsArea = document.getElementById('printed-dots-area');
+
+        // --- VISUALIZATION PARAMETERS ---
+        const SCALE_FACTOR = 0.3; 
+        
+        function degreesToRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+
+        function calculateMetricsFromAngle(angleDeg) {
+            if (angleDeg === 0) {
+                return { yPrint: 0, dpi: 0, sinTheta: 0 };
+            }
+
+            const angleRad = degreesToRadians(angleDeg);
+            const sinTheta = Math.sin(angleRad);
+            
+            const yPrint = NOZZLE_PITCH_UM * sinTheta;
+            const dpi = UM_PER_INCH / yPrint;
+
+            return {
+                yPrint: yPrint,
+                dpi: dpi,
+                sinTheta: sinTheta
+            };
+        }
+        
+        function calculateXMetrics(level) {
+            const metrics = X_AXIS_LEVELS[level];
+            return {
+                xPrint: metrics.spacing,
+                dpiX: metrics.dpi
+            };
+        }
+        
+        function calculateAngleFromDPI(dpi) {
+            dpi = dpi || parseFloat(desiredDPIInput.value);
+            
+            if (dpi <= 0 || isNaN(dpi) || dpi === Infinity) {
+                requiredAngleDisplay.textContent = '---';
+                return NaN;
+            }
+
+            const targetYPrint = UM_PER_INCH / dpi;
+            const sinTheta = targetYPrint / NOZZLE_PITCH_UM;
+            
+            if (sinTheta > 1) {
+                requiredAngleDisplay.textContent = 'Unachievable (DPI too low)';
+                return NaN;
+            }
+            
+            const angleRad = Math.asin(sinTheta);
+            const angleDeg = angleRad * (180 / Math.PI);
+
+            requiredAngleDisplay.textContent = angleDeg.toFixed(2);
+            
+            angleSlider.value = angleDeg;
+            updateVisualizationFromAngle(angleDeg);
+            
+            return angleDeg;
+        }
+
+        function updateVisualizationGraphics(angleDeg, yPrint, xPrint, isFrequencySimulated) {
+            
+            // --- X-Position Input Application ---
+            const headXPosition = headXPositionInput.value;
+            const dotsXPosition = dotsXPositionInput.value;
+
+            nozzleHeadContainer.style.left = `${headXPosition}%`;
+            printedDotsArea.style.left = `${dotsXPosition}%`;
+            
+            currentHeadXDisplay.textContent = `${headXPosition}%`;
+            currentDotsXDisplay.textContent = `${dotsXPosition}%`;
+            // ------------------------------------
+            
+            const totalHeadLengthPixels = (NUM_NOZZLES - 1) * NOZZLE_PITCH_UM * SCALE_FACTOR;
+            
+            // Rotation calculation: 90deg base - angleDeg (CCW movement)
+            const totalRotation = 90 - angleDeg; 
+            
+            // 2. Clear previous dots and spacing lines
+            printedDotsArea.innerHTML = '';
+            
+            // 3. Clear and Recreate Nozzles and Box 
+            nozzleHeadContainer.innerHTML = ''; 
+            
+            const headBox = document.createElement('div');
+            headBox.classList.add('head-box');
+            nozzleHeadContainer.appendChild(headBox);
+
+            const nozzleDiameter = NOZZLE_DIAMETER_PX;
+            
+            headBox.style.width = `${nozzleDiameter}px`;
+            headBox.style.height = `${totalHeadLengthPixels}px`;
+            headBox.style.transform = `translate(-50%, 0)`; 
+
+            // --- Vertical Alignment: PIVOT FIX ---
+            // Calculate the required vertical offset to center the pivot (Nozzle 0) center on the Y=50% line.
+            const verticalOffset = nozzleDiameter / 2; 
+            
+            // HEAD TRANSFORMATION: Rotate + Shift up by base offset to center Nozzle 0 on the Y=50% line.
+            nozzleHeadContainer.style.transform = `rotate(${totalRotation}deg) translateY(-${verticalOffset}px)`;
+            
+            // DOTS TRANSFORMATION: Shift up by base offset to center Dot 0 on the Y=50% line.
+            printedDotsArea.style.transform = `translateY(-${verticalOffset}px)`;
+            
+            
+            // Create Nozzles INSIDE the Head Box 
+            for (let i = 0; i < NUM_NOZZLES; i++) {
+                const nozzle = document.createElement('div');
+                nozzle.classList.add('nozzle');
+                // yPosition is the desired CENTERLINE of the nozzle. For Nozzle 0, yPosition = 0.
+                const yPosition = i * NOZZLE_PITCH_UM * SCALE_FACTOR;
+                nozzle.style.top = `${yPosition}px`;
+                nozzle.style.left = `${nozzleDiameter / 2}px`;
+                // Center the nozzle element on the yPosition line
+                nozzle.style.transform = `translate(-50%, -50%)`; 
+                headBox.appendChild(nozzle); 
+            }
+            
+            // --- Printed Dots setup (Matrix vs. Single Dot) ---
+            const dropSizeMultiplier = parseFloat(dropSizeMultiplierInput.value) || 1;
+            const currentDotSize = BASE_DOT_SIZE_PX * dropSizeMultiplier;
+            
+            for (let i = 0; i < NUM_NOZZLES; i++) {
+                // yPosPixels is the desired centerline of the dot.
+                const yPosPixels = i * yPrint * SCALE_FACTOR;
+                
+                // If frequency simulation is OFF, show only the single alignment dot
+                const numDots = isFrequencySimulated ? NUM_X_DOTS : 1;
+                const useXPrint = isFrequencySimulated ? xPrint : 0;
+                
+                // Create the row/matrix start point
+                const xDotRow = document.createElement('div');
+                xDotRow.style.position = 'absolute';
+                xDotRow.style.top = `${yPosPixels}px`; 
+
+                for (let j = 0; j < numDots; j++) {
+                    const xPosPixels = j * useXPrint * SCALE_FACTOR;
+                    
+                    const dot = document.createElement('div');
+                    dot.classList.add('printed-dot');
+                    
+                    // Calculate the top position needed to center the dot on the yPosPixels line
+                    const dotTopPosition = 0 - (currentDotSize / 2); // Relative to xDotRow's top (which is yPosPixels)
+                    
+                    dot.style.top = `${dotTopPosition}px`;
+                    dot.style.left = `${xPosPixels}px`;
+                    
+                    // Set dynamic size and color
+                    dot.style.width = `${currentDotSize}px`;
+                    dot.style.height = `${currentDotSize}px`;
+                    
+                    // Color differentiation: Blue for Y-alignment (j=0), Green for X-matrix (j>0)
+                    dot.style.backgroundColor = (j === 0) ? '#1e90ff' : '#008000'; 
+                    dot.style.borderColor = (j === 0) ? '#0056b3' : '#004d00';
+                    
+                    xDotRow.appendChild(dot);
+                }
+                
+                printedDotsArea.appendChild(xDotRow);
+            }
+
+            // 4. Add Spacing Line (Y-axis reference)
+            if (NUM_NOZZLES >= 2 && yPrint > 0) {
+                const yPos1 = 0 * yPrint * SCALE_FACTOR;
+                const yPos2 = 1 * yPrint * SCALE_FACTOR;
+                
+                const spacingLine = document.createElement('div');
+                spacingLine.classList.add('spacing-line');
+                
+                // Spacing line starts at the top edge of the first dot
+                const startLineY = yPos1 - (currentDotSize / 2); 
+                const lineLength = yPos2 - yPos1;
+                
+                spacingLine.style.top = `${startLineY}px`; 
+                spacingLine.style.height = `${lineLength}px`;
+                spacingLine.style.borderTop = '1px dashed #333';
+                spacingLine.style.borderBottom = '1px dashed #333';
+                spacingLine.style.width = '20px';
+                
+                printedDotsArea.appendChild(spacingLine);
+            }
+            
+            // 5. Add X-Spacing Line (only if simulated)
+            if (isFrequencySimulated && xPrint > 0) {
+                const xPos1 = 0 * xPrint * SCALE_FACTOR;
+                const xPos2 = 1 * xPrint * SCALE_FACTOR;
+                
+                const spacingLineX = document.createElement('div');
+                spacingLineX.style.position = 'absolute';
+                spacingLineX.style.height = '0px'; 
+                spacingLineX.style.borderBottom = '1px dashed #008000';
+                
+                // Position line horizontally just below the first row of dots (Y=0 row)
+                const lineYPosition = 0 + (currentDotSize / 2) + 5; 
+                
+                spacingLineX.style.top = `${lineYPosition}px`; 
+                spacingLineX.style.left = `${xPos1}px`;
+                spacingLineX.style.width = `${xPos2 - xPos1}px`;
+                
+                printedDotsArea.appendChild(spacingLineX);
+            }
+        }
+
+        function updateVisualizationFromAngle(angleDeg) {
+            angleDeg = angleDeg || parseFloat(angleSlider.value);
+            
+            const isFrequencySimulated = frequencyToggle.checked;
+            const frequencyLevel = frequencyLevelSelect.value;
+            
+            let metricsX = { xPrint: 0, dpiX: 0 };
+            
+            if (isFrequencySimulated) {
+                metricsX = calculateXMetrics(frequencyLevel);
+            }
+            
+            // Update X-Axis Displays
+            calculatedDpiXDisplay.textContent = metricsX.dpiX.toFixed(2);
+            xPrintSpacingDisplay.textContent = metricsX.xPrint.toFixed(2);
+            
+            // ----------------------------------------------------
+
+            const metricsY = calculateMetricsFromAngle(angleDeg);
+            currentAngleDisplay.textContent = angleDeg.toFixed(2);
+            
+            // Handle Y-axis edge cases
+            if (angleDeg === 0) {
+                yPrintSpacingDisplay.textContent = '0.00';
+                calculatedDpiDisplay.textContent = 'Infinity (No Spacing)';
+                sinThetaDisplay.textContent = '0.0000';
+            } else if (angleDeg === 90) {
+                yPrintSpacingDisplay.textContent = NOZZLE_PITCH_UM.toFixed(2);
+                calculatedDpiDisplay.textContent = (UM_PER_INCH / NOZZLE_PITCH_UM).toFixed(2);
+                sinThetaDisplay.textContent = '1.0000';
+            } else {
+                sinThetaDisplay.textContent = metricsY.sinTheta.toFixed(4);
+                yPrintSpacingDisplay.textContent = metricsY.yPrint.toFixed(2);
+                calculatedDpiDisplay.textContent = metricsY.dpi.toFixed(2);
+            }
+            
+            updateVisualizationGraphics(angleDeg, metricsY.yPrint, metricsX.xPrint, isFrequencySimulated);
+        }
+        
+        // Initialize the app on load
+        updateVisualizationFromAngle();
+    </script>
+</body>
+</html>
