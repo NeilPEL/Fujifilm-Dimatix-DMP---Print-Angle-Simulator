@@ -1,0 +1,1 @@
+This is a simple webpage to simulate the effect of rake angle on the Fujufilm Dimatix DMP print head. In this case the 12 nozzle variant with 75DPI native resolution. The point of the simulator is mainly to explain to new users and students why it is necessary to change the angle of the head. It is also possible to change the "print frequency" and the drop size.
