@@ -222,7 +222,7 @@
         <div class="input-group">
             <label for="frequency-level">Print Frequency Setting:</label>
             <select id="frequency-level" onchange="updateVisualizationFromAngle()">
-                <option value="MEDIUM">Medium (1270 DPI)</option>
+                <option value="STANDARD">Standard (1270 DPI)</option>
                 <option value="VERY_LOW">Very Low (300 DPI)</option>
                 <option value="LOW">Low (600 DPI)</option>
                 <option value="HIGH">High (1800 DPI)</option>
@@ -259,7 +259,7 @@
         const X_AXIS_LEVELS = {
             VERY_LOW: { dpi: 300, spacing: 25400 / 300 },      // ~84.67 um
             LOW: { dpi: 600, spacing: 25400 / 600 },        // ~42.33 um
-            MEDIUM: { dpi: 1270, spacing: 25400 / 1270 },    // ~20.00 um
+            STANDARD: { dpi: 1270, spacing: 25400 / 1270 },    // ~20.00 um
             HIGH: { dpi: 1800, spacing: 25400 / 1800 },      // ~14.11 um
             VERY_HIGH: { dpi: 2540, spacing: 25400 / 2540 }  // ~10.00 um
         };
@@ -532,3 +532,4 @@
     </script>
 </body>
 </html>
+
